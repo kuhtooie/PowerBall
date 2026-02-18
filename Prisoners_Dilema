@@ -1,0 +1,9 @@
+from random import randint
+
+i = randint(0,7)
+
+if i == 3:
+    print("deffect")
+else:
+    print("tolerate")
+    
