@@ -1,0 +1,7 @@
+aa = []
+b = pd.read_pickle(r"C:\\Users\\file.pickle")
+for ii in b[0]:
+    if ii != "AC":
+        aa.append(ii)
+aa = pd.DataFrame(aa)
+aa.to_pickle(r"C:\\Users\\#\\file.pickle")
