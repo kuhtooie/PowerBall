@@ -1,0 +1,8 @@
+import pandas as Shalla
+file = ""
+#https://github.com/rreichel3/US-Stock-Symbols/edit/main/all/all_tickers.txt
+a = """stocks1\nstocks2"""
+
+a = a.split("\n")
+a = Shalla.DataFrame(a)
+a.to_csv(file)
