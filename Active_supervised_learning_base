@@ -1,0 +1,96 @@
+import tkinter as tk
+import random
+
+# -----------------------------
+# Game Logic (Decoupled)
+# -----------------------------
+import statistics
+
+DATA = [random.randint(30, 70) for _ in range(100)]
+
+def score_math(value, choice):
+    """
+    Core scoring function.
+    Replace this with your actual statistical logic.
+
+    choice: -1, 0, 1
+    """
+    # Example logic:
+    # Closer to zero movement is safer
+    return max(0, 10 - abs(value + choice))
+
+
+# -----------------------------
+# GUI
+# -----------------------------
+
+class StatsGameGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Statistics Game")
+
+        self.score = 0
+        self.current_key = None
+        self.current_value = None
+
+        # --- Display ---
+        self.prompt_label = tk.Label(root, text="Statistic:", font=("Arial", 14))
+        self.prompt_label.pack(pady=5)
+
+        self.stat_label = tk.Label(root, text="", font=("Arial", 20, "bold"))
+        self.stat_label.pack(pady=10)
+
+        self.score_label = tk.Label(root, text="Score: 0", font=("Arial", 14))
+        self.score_label.pack(pady=5)
+
+        # --- Buttons ---
+        btn_frame = tk.Frame(root)
+        btn_frame.pack(pady=10)
+
+        tk.Button(btn_frame, text="Left (-1)", width=10,
+                  command=lambda: self.make_choice(-1)).grid(row=0, column=0, padx=5)
+
+        tk.Button(btn_frame, text="Stay (0)", width=10,
+                  command=lambda: self.make_choice(0)).grid(row=0, column=1, padx=5)
+
+        tk.Button(btn_frame, text="Right (+1)", width=10,
+                  command=lambda: self.make_choice(1)).grid(row=0, column=2, padx=5)
+
+        # --- Feedback ---
+        self.feedback_label = tk.Label(root, text="", font=("Arial", 12))
+        self.feedback_label.pack(pady=5)
+
+        self.next_round()
+
+    # -----------------------------
+    # Game Loop
+    # -----------------------------
+
+    def next_round(self):
+        self.current_value = DATA[random.randint(0,random.randint(round(len(DATA)/2),len(DATA)))]
+        self.stat_label.config(text=f"{self.current_value}")
+        self.feedback_label.config(text="")
+
+    def make_choice(self, choice):
+        points = score_math(self.current_value, choice)
+        self.score += points
+
+        self.score_label.config(text=f"Score: {self.score}")
+        self.feedback_label.config(
+            text=f"Choice: {choice:+d} → +{points} points"
+        )
+
+        self.root.after(800, self.next_round)
+
+
+# -----------------------------
+# Run
+# -----------------------------
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = StatsGameGUI(root)
+    root.mainloop()
+
+
+
