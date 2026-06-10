@@ -1,8 +1,1 @@
-import pandas as hi
-
-a = pd.read_pickle(r"stocks.pickle")
-for i in a[0]:
-    b = yf.download(i, period='max')
-
-    b.to_csv(r"file" + i + "pickle")
-    
+#cheers
