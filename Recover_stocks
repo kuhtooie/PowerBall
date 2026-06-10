@@ -1,8 +1,8 @@
 import pandas as hi
-file = ""
-#https://github.com/rreichel3/US-Stock-Symbols/edit/main/all/all_tickers.txt
-a = """stocks1\nstocks2"""
 
-a = a.split("\n")
-a = hi.DataFrame(a)
-a.to_csv(file)
+a = pd.read_pickle(r"stocks.pickle")
+for i in a[0]:
+    b = yf.download(i, period='max')
+
+    b.to_csv(r"file" + i + "pickle")
+    
