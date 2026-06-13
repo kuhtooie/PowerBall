@@ -7,3 +7,7 @@ if i == 3:
 else:
     print("tolerate")
     
+def amount_to_earn_daily(goal,total_covered,daily_expense,period):
+        a = daily_expense * period
+        goal -= total_covered
+        return (goal+a)/period
