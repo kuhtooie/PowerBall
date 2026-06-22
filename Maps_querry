@@ -1,0 +1,48 @@
+import requests
+import json
+
+def get_street_systems(country_code):
+    """
+    Queries the Overpass API for highways and major street systems 
+    within a specific country using its ISO 2-letter country code.
+    """
+    overpass_url = "https://overpass-api.de/api/interpreter"
+    
+    # Overpass QL Query
+    # [timeout:600] gives the server up to 10 minutes for large data chunks
+    # 'highway'='motorway|trunk|primary' filters for main highways/streets.
+    # Replace the filter with 'highway' to get *every* single residential street (Caution: Massive data!).
+    query = f"""
+    [out:json][timeout:600];
+    area["ISO3166-1"="{country_code}"]["admin_level"="2"]->.searchArea;
+    (
+      way["highway"~"motorway|trunk|primary|secondary"](area.searchArea);
+    );
+    out geom;
+    """
+    
+    print(f"Sending query for country: {country_code}... This may take a while.")
+    
+    try:
+        response = requests.post(overpass_url, data={'data': query})
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.HTTPError as err:
+        print(f"HTTP error occurred: {err}")
+    except Exception as err:
+        print(f"An error occurred: {err}")
+
+# List of target English-speaking countries
+english_speaking_countries = ["GB", "NZ", "AU"] # Starting small. Add "US", "CA" with caution!
+
+for country in english_speaking_countries:
+    data = get_street_systems(country)
+    
+    if data and "elements" in data:
+        print(f"Successfully retrieved {len(data['elements'])} street segments for {country}.")
+        
+        # Save the raw JSON data locally
+        filename = f"{country}_highways.json"
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+        print(f"Saved data to {filename}\n")
