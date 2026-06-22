@@ -1,0 +1,77 @@
+import json
+import overpy
+
+def get_street_systems_overpy(country_code):
+    """
+    Queries the Overpass API using the overpy library for major street systems 
+    within a specific country using its ISO 2-letter country code.
+    """
+    # Initialize the Overpass API client
+    api = overpy.Overpass()
+    
+    # Overpass QL Query (Note: We use [out:json] because overpy parses JSON under the hood)
+    query = f"""
+    [out:json][timeout:600];
+    area["ISO3166-1"="{country_code}"]["admin_level"="2"]->.searchArea;
+    (
+      way["highway"~"motorway|trunk|primary|secondary"](area.searchArea);
+    );
+    out geom;
+    """
+    
+    print(f"Sending overpy query for country: {country_code}... This may take a while.")
+    
+    try:
+        # overpy automatically sends the POST request to the Overpass server and parses it
+        result = api.query(query)
+        return result
+    except overpy.exception.OverpassGatewayTimeout:
+        print("Error: The Overpass server timed out.")
+    except overpy.exception.OverpassBadRequest as e:
+        print(f"Error: Bad query syntax. {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+    return None
+
+def save_result_to_json(result, filename):
+    """
+    Helper function to serialize the overpy Result object back into a 
+    readable JSON structure to replicate your original file-saving output.
+    """
+    elements = []
+    
+    # Loop through the parsed ways in the result object
+    for way in result.ways:
+        # Extract geometry (lat/lon coordinates of the nodes making up the way)
+        geometry = [{"lat": float(node.lat), "lon": float(node.lon)} for node in way.nodes]
+        
+        way_data = {
+            "type": "way",
+            "id": way.id,
+            "tags": way.tags,
+            "nodes": [node.id for node in way.nodes],
+            "geometry": geometry
+        }
+        elements.append(way_data)
+        
+    output_data = {"elements": elements}
+    
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(output_data, f, indent=4)
+
+
+# List of target English-speaking countries
+english_speaking_countries = ["GB", "NZ", "AU"]
+
+for country in english_speaking_countries:
+    result = get_street_systems_overpy(country)
+    
+    if result and result.ways:
+        print(f"Successfully retrieved {len(result.ways)} street segments for {country}.")
+        
+        # Save the parsed data into a structured JSON file matching your previous schema
+        filename = f"{country}_highways.json"
+        save_result_to_json(result, filename)
+        print(f"Saved data to {filename}\n")
+    else:
+        print(f"No data returned or error fetching data for {country}.\n")
