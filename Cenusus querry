@@ -1,20 +1,20 @@
 from census import Census
 
-# Replace with your activated API key
-KEY = "241a8832aad094e87cce0746bb8eb93d0527e5ec"
+KEY = "api key"
 c = Census(KEY)
 
-# Fetch population (B01003_001E) for all places in California (06)
-data = c.acs5.state_place(('NAME', 'B01003_001E'), Census.ALL,Census.ALL)
+# Variable B19013_001E = Median Household Income in the past 12 months
+# Variable B01003_001E = Total Population
+data = c.acs5.state_place(
+    ('NAME', 'B01003_001E', 'B19013_001E'),
+    Census.ALL,
+    Census.ALL
+)
+b=[]
+for entry in data[:5]:  # Preview first 5 entries
+    name = entry.get('NAME')
+    pop = entry.get('B01003_001E')
+    income = entry.get('B19013_001E')
 
-a = []
-for entry in data:
-    pop_str = entry.get('B01003_001E')
-
-    # Ensure data exists before converting to int
-    if pop_str is not None:
-        pop = int(pop_str)
-        if pop < 600000:
-            a.append(entry['NAME'])
-
-print(f"Found {len(a)} places with population < 600,000.")
+    if pop < 500000 and income > 40000:
+        b.append(name)
