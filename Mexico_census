@@ -1,0 +1,148 @@
+import time
+import pandas as pd
+import requests
+from INEGIpy import MarcoGeoestadistico
+
+
+class INEGIHandler:
+    def __init__(self, token: str):
+        self.token = token
+        self.marco = MarcoGeoestadistico()
+        self.df_final = pd.DataFrame()
+
+    def fetch_municipal_base(self) -> pd.DataFrame:
+        """Fetch municipal boundaries, geo keys, names, and population directly
+
+        from MarcoGeoestadistico.
+        """
+        all_states = []
+        print("1/3: Fetching Municipal Geo & Population Data...")
+
+        for state_num in range(1, 33):
+            state_code = f"{state_num:02d}"
+            try:
+                # Retrieve spatial attribute data for state
+                df_state = self.marco.Municipios(
+                    entidades=state_code, as_geodf=False
+                )
+                df_state.columns = [c.lower() for c in df_state.columns]
+                all_states.append(df_state)
+            except Exception as e:
+                print(f"Skipped state {state_code}: {e}")
+
+        # Combine state frames
+        df_all_muni = pd.concat(all_states, ignore_index=True)
+
+        # Standardize target columns
+        df_base = df_all_muni[
+            ["cvegeo", "cve_agee", "cve_agem", "nom_agem", "pob"]
+        ].rename(
+            columns={
+                "cvegeo": "geo_key",
+                "cve_agee": "state_code",
+                "cve_agem": "muni_code",
+                "nom_agem": "city_name",
+                "pob": "population",
+            }
+        )
+
+        # Formatting
+        df_base["geo_key"] = df_base["geo_key"].astype(str).str.zfill(5)
+        df_base["state_code"] = df_base["state_code"].astype(str).str.zfill(2)
+        df_base["muni_code"] = df_base["muni_code"].astype(str).str.zfill(3)
+        df_base["population"] = pd.to_numeric(
+            df_base["population"], errors="coerce"
+        )
+
+        self.df_final = df_base
+        print(f"Loaded {len(self.df_final)} municipal records.")
+        return self.df_final
+
+    def fetch_income_data(
+        self, indicator_key: str = "6200240398"
+    ) -> pd.DataFrame:
+        """Fetch income indicator across municipalities and map onto df_final."""
+        if self.df_final.empty:
+            raise ValueError(
+                "Base municipal data is empty. Run fetch_municipal_base() first."
+            )
+
+        print("\n2/3: Fetching Municipal Income Data...")
+        inc_dict = {}
+        headers = {"User-Agent": "Mozilla/5.0"}
+
+        # Query endpoint using municipal coverage scope '0700'
+        for bank in ["BISE", "BINE"]:
+            url = f"https://www.inegi.org.mx/app/api/indicadores/desarrolladores/jsonxml/INDICATOR/{indicator_key}/0700/es/0700/false/{bank}/2.0/{self.token}?type=json"
+            try:
+                res = requests.get(url, headers=headers, timeout=15)
+                if res.status_code == 200:
+                    data = res.json()
+                    series_list = data.get("Series", [])
+
+                    for series in series_list:
+                        cob = str(series.get("COB_GEOGRAFICA", ""))
+                        digits = "".join(filter(str.isdigit, cob))
+
+                        if len(digits) >= 5:
+                            geo_key = digits[-5:]
+                            obs = series.get("OBSERVATIONS", [])
+                            if obs:
+                                val = obs[-1].get("OBS_VALUE")
+                                if val is not None:
+                                    inc_dict[geo_key] = float(val)
+
+                    if inc_dict:
+                        print(
+                            f"Successfully mapped {len(inc_dict)} income records ({bank})."
+                        )
+                        break
+            except Exception as e:
+                continue
+
+        # Map income values onto primary dataframe
+        self.df_final["income"] = self.df_final["geo_key"].map(inc_dict)
+        return self.df_final
+
+    def get_filtered_cities(
+        self, min_pop: int = 20000, max_pop: int = 500000
+    ) -> pd.DataFrame:
+        """Filter dataset by population range."""
+        if "population" not in self.df_final.columns:
+            raise KeyError("Population column missing from dataset.")
+
+        filtered = self.df_final[
+            (self.df_final["population"] >= min_pop)
+            & (self.df_final["population"] <= max_pop)
+        ]
+        print(
+            f"\n3/3: Found {len(filtered)} municipalities matching population criteria ({min_pop:,} - {max_pop:,})."
+        )
+        return filtered
+
+
+# ---------------------------------------------------------
+# EXECUTION
+# ---------------------------------------------------------
+if __name__ == "__main__":
+    INEGI_TOKEN = "Your api key"
+
+    # Initialize handler
+    handler = INEGIHandler(token=INEGI_TOKEN)
+
+    # 1. Fetch base names and population
+    handler.fetch_municipal_base()
+
+    # 2. Add income data
+    handler.fetch_income_data()
+
+    # 3. Output sample and filtered results
+    print("\nDataset Sample:")
+    print(
+        handler.df_final[
+            ["geo_key", "state_code", "city_name", "population", "income"]
+        ].head(25)
+    )
+
+    filtered_df = handler.get_filtered_cities(min_pop=20000, max_pop=500000)
+    
