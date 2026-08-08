@@ -761,14 +761,20 @@ class Backtest:
         self.saved.to_pickle(r"C:\Users\file\market_data\\"+type+"_saved.pickle")
 
 
-    def manage_date_manager(self):
-        b = 0
-        for i in self.date_manager.keys():
-            if len(self.date_manager[i]) > b:
-                b = len(self.date_manager[i])
-        for i in self.date_manager.keys():
-            while len(self.date_manager[i]) < b:
-                self.date_manager[i].append(0)
+def manage_date_manager(self):
+    # Ensure self.date_manager is a DataFrame and pad shorter columns with 0
+    if isinstance(self.date_manager, pd.DataFrame):
+        # Find the maximum length among all columns
+        max_len = max(len(self.date_manager[col]) for col in self.date_manager.columns)
+        
+        # Reindex or pad each column to match max_len using 0
+        for col in self.date_manager.columns:
+            current_len = len(self.date_manager[col])
+            if current_len < max_len:
+                # Create a padded series or fill values
+                padding = pd.Series([0] * (max_len - current_len))
+                self.date_manager[col] = pd.concat([self.date_manager[col].reset_index(drop=True), padding], ignore_index=True)
+
 
 # 1. Format tickers for Yahoo Finance standards
 formatted_stocks = stocks
