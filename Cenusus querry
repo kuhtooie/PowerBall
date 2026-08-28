@@ -1,315 +1,60 @@
 from census import Census
-
-KEY = "api key"
-c = Census(KEY)
-
-# Variable B19013_001E = Median Household Income in the past 12 months
-# Variable B01003_001E = Total Population
-data = c.acs5.state_place(
-    ('NAME', 'B01003_001E', 'B19013_001E'),
-    Census.ALL,
-    Census.ALL
-)
-b=[]
-for entry in data[:5]:  # Preview first 5 entries
-    name = entry.get('NAME')
-    pop = entry.get('B01003_001E')
-    income = entry.get('B19013_001E')
-
-    if pop < 500000 and income > 40000:
-        b.append(name)
-
-
-
-import os
 import pandas as pd
 
+KEY = "your_actual_40_character_api_key_here"
+c = Census(KEY)
 
-def generate_all_global_census_api_csvs(save_folder):
-    """Combines all global, Asian, South American, and African census API mappings into
+def get_filtered_cities():
+    try:
+        min_pop = int(input("Enter maximum population threshold (e.g., 500000): ").strip())
+        min_income = int(input("Enter minimum median income threshold (e.g., 40000): ").strip())
+    except ValueError:
+        print("Invalid input. Please enter numeric values for population and income.")
+        return {}
 
-    a single unified directory. Generates one master `names.csv` roster and individual
+    print(f"\nQuerying Census Bureau ACS 5-Year estimates for cities with population < {min_pop:,} and income > ${min_income:,}...")
 
-    `[Country].csv` files matching the `Administrator` class schema.
-    """
-    os.makedirs(save_folder, exist_ok=True)
+    try:
+        # Variable B01003_001E = Total Population
+        # Variable B19013_001E = Median Household Income in the past 12 months
+        data = c.acs5.state_place(
+            ('NAME', 'B01003_001E', 'B19013_001E'),
+            Census.ALL,
+            Census.ALL
+        )
+        
+        # Dictionary to store the results categorized by city name
+        cities_dict = {}
+        
+        for entry in data:
+            name = entry.get('NAME')
+            pop = entry.get('B01003_001E')
+            income = entry.get('B19013_001E')
 
-    # Master combined census API data dictionary
-    global_census_api_data = {
-        # --- Global / Americas / Europe / Oceania ---
-        "United_States": [
-            {
-                "Task": "https://api.census.gov/data/key_signup.html",
-                "Value": "Requires a free 40-character API key parameter key=KEY. Supports REST/JSON queries for ACS and Decennial datasets.",
-                "Status": 0,
-            }
-        ],
-        "Canada": [
-            {
-                "Task": "https://www.statcan.gc.ca/eng/developers/wds",
-                "Value": "No API key required. Uses RESTful Web Data Service (WDS) endpoints returning JSON payloads.",
-                "Status": 0,
-            }
-        ],
-        "Mexico": [
-            {
-                "Task": "https://www.inegi.org.mx/servicios/api_indicadores.html",
-                "Value": "Requires user registration to receive an API Token passed via query string. Returns JSON/JSON-Stat.",
-                "Status": 0,
-            }
-        ],
-        "United_Kingdom": [
-            {
-                "Task": "https://developer.ons.gov.uk/",
-                "Value": "No key needed for standard REST public API endpoints. NOMIS local statistics require specific dataset ID params.",
-                "Status": 0,
-            }
-        ],
-        "Spain": [
-            {
-                "Task": "https://www.ine.es/dyngs/INEbase/es/categoria.htm?c=Estadistica_P&cid=1254734710984",
-                "Value": "Open access REST/JSON endpoints without API keys. Uses statutory table codes (INEBase) to query municipal register data.",
-                "Status": 0,
-            }
-        ],
-        "Sweden": [
-            {
-                "Task": "https://www.scb.se/en/services/open-data-api/",
-                "Value": "No API key needed. Built on the PX-Web API platform using HTTP POST requests with JSON payload queries.",
-                "Status": 0,
-            }
-        ],
-        "Australia": [
-            {
-                "Task": "https://www.abs.gov.au/about/data-services/abs-data-api",
-                "Value": "No auth key required. Uses international SDMX-REST standard guidelines returning JSON-stat or SDMX-ML XML.",
-                "Status": 0,
-            }
-        ],
-        "Eurostat_EU": [
-            {
-                "Task": "https://ec.europa.eu/eurostat/web/main/data/database",
-                "Value": "Covers all EU nations. Open REST/SDMX API requiring no key, returning JSON-stat or TSV formatted datasets.",
-                "Status": 0,
-            }
-        ],
-        # --- Asia ---
-        "Japan": [
-            {
-                "Task": "https://www.e-stat.go.jp/api/en",
-                "Value": "Requires user registration to receive an appId token parameter. Supports REST calls returning JSON, XML, or CSV formats.",
-                "Status": 0,
-            }
-        ],
-        "South_Korea": [
-            {
-                "Task": "https://kosis.kr/openapi/",
-                "Value": "Requires a user account and API key parameter (apiKey). Uses RESTful JSON/XML endpoints provided by KOSIS.",
-                "Status": 0,
-            }
-        ],
-        "Indonesia": [
-            {
-                "Task": "https://webapi.bps.go.id/developer/",
-                "Value": "Requires registering an account with BPS to obtain a domain key string. Offers JSON endpoints via WebAPI BPS.",
-                "Status": 0,
-            }
-        ],
-        "Philippines": [
-            {
-                "Task": "https://openstat.psa.gov.ph:443/PXWeb/api/v1/en",
-                "Value": "Built on the PX-Web API standard provided by OpenSTAT PSA. Public access requiring no auth key via REST/JSON.",
-                "Status": 0,
-            }
-        ],
-        "Singapore": [
-            {
-                "Task": "https://tablebuilder.singstat.gov.sg/public/api/doc/index.html",
-                "Value": "No API key required for standard public queries. Department of Statistics (DOS) API returns JSON payloads.",
-                "Status": 0,
-            }
-        ],
-        "China": [
-            {
-                "Task": "https://www.stats.gov.cn/engUserCenter/register/userRegistrationPage",
-                "Value": "Requires individual account registration. Queries National Bureau of Statistics (NBS) census data tables via HTTP POST/GET.",
-                "Status": 0,
-            }
-        ],
-        "India": [
-            {
-                "Task": "https://data.gov.in/",
-                "Value": "Requires registration on the Open Government Data platform to get an api-key query parameter returning JSON/CSV formats.",
-                "Status": 0,
-            }
-        ],
-        "Thailand": [
-            {
-                "Task": "https://nso.go.th/",
-                "Value": "National Statistical Office (NSO) API requires a registered developer application ID. Uses REST/JSON endpoints.",
-                "Status": 0,
-            }
-        ],
-        "Taiwan": [
-            {
-                "Task": "https://segis.moi.gov.tw/",
-                "Value": "Socio-Economic Geographic Information System (SEGIS) API provides spatial census demographics via open REST services.",
-                "Status": 0,
-            }
-        ],
-        # --- South America ---
-        "Brazil": [
-            {
-                "Task": "https://servicodados.ibge.gov.br/api/v3/agregados",
-                "Value": "No registration or API key required. IBGE's Sidra API uses standard REST URL parameters returning JSON data.",
-                "Status": 0,
-            }
-        ],
-        "Argentina": [
-            {
-                "Task": "https://datos.gob.ar/",
-                "Value": "Open access REST API provided by National Data Portal (INDEC datasets). Returns JSON/CSV without requiring API keys.",
-                "Status": 0,
-            }
-        ],
-        "Colombia": [
-            {
-                "Task": "https://www.datos.gov.co/developers",
-                "Value": "Uses Socrata Open Data API (SODA) for DANE census metrics. Supports REST/JSON queries; app tokens optional for high rate limits.",
-                "Status": 0,
-            }
-        ],
-        "Chile": [
-            {
-                "Task": "https://datos.gob.cl/",
-                "Value": "Provides CKAN REST API endpoints for National Institute of Statistics (INE) demographic data. Returns JSON/CSV without API keys.",
-                "Status": 0,
-            }
-        ],
-        "Peru": [
-            {
-                "Task": "https://www.datosabiertos.gob.pe/",
-                "Value": "National Open Data Portal hosting INEI census statistics. Offers CKAN-based REST API endpoints returning JSON data.",
-                "Status": 0,
-            }
-        ],
-        "Ecuador": [
-            {
-                "Task": "https://www.ecuadorenencifras.gob.ec/redatam/",
-                "Value": "Provides web services and REDATAM platform access for INEC census data. Queries executed via HTTP GET/POST endpoints.",
-                "Status": 0,
-            }
-        ],
-        "Uruguay": [
-            {
-                "Task": "https://catalogodatos.gub.uy/",
-                "Value": "National Open Data Catalog for INE Uruguay census data. CKAN REST API provides query endpoints in JSON and CSV formats.",
-                "Status": 0,
-            }
-        ],
-        "Paraguay": [
-            {
-                "Task": "https://www.ine.gov.py/",
-                "Value": "National Institute of Statistics (INE) provides open web microdata and REST web services for population and housing census datasets.",
-                "Status": 0,
-            }
-        ],
-        "Bolivia": [
-            {
-                "Task": "https://www.ine.gob.bo/",
-                "Value": "National Institute of Statistics (INE Bolivia) provides online census databases and open data endpoints for demographic metrics.",
-                "Status": 0,
-            }
-        ],
-        # --- Africa ---
-        "South_Africa": [
-            {
-                "Task": "https://www.statssa.gov.za/",
-                "Value": "Statistics South Africa (Stats SA) provides open demographic datasets and regional census indicators via HTTP/REST downloads and API feeds.",
-                "Status": 0,
-            }
-        ],
-        "Nigeria": [
-            {
-                "Task": "https://www.nigerianstat.gov.ng/nada/index.php/api/catalog/search",
-                "Value": "National Bureau of Statistics (NBS) provides a NADA catalog API endpoint returning JSON/XML microdata and census records.",
-                "Status": 0,
-            }
-        ],
-        "Kenya": [
-            {
-                "Task": "https://www.opendata.go.ke/",
-                "Value": "Kenya Open Data Portal / KNBS provides REST API endpoints returning county and sub-county level census and housing metrics.",
-                "Status": 0,
-            }
-        ],
-        "Rwanda": [
-            {
-                "Task": "https://rwanda.opendataforafrica.org/",
-                "Value": "National Institute of Statistics of Rwanda (NISR) / AfDB portal provides REST/JSON API access to national census indicators.",
-                "Status": 0,
-            }
-        ],
-        "Ghana": [
-            {
-                "Task": "https://statsghana.gov.gh/",
-                "Value": "Ghana Statistical Service (GSS) provides open statistics and census API/data portal endpoints for population and housing data.",
-                "Status": 0,
-            }
-        ],
-        "Egypt": [
-            {
-                "Task": "https://www.capmas.gov.eg/",
-                "Value": "Central Agency for Public Mobilization and Statistics (CAPMAS) provides national demographic indicators via public web portals.",
-                "Status": 0,
-            }
-        ],
-        "Morocco": [
-            {
-                "Task": "https://www.hcp.ma/",
-                "Value": "Haut-Commissariat au Plan (HCP) provides open data endpoints and web queries for Moroccan demographic and housing census metrics.",
-                "Status": 0,
-            }
-        ],
-        "Tunisia": [
-            {
-                "Task": "http://www.ins.tn/",
-                "Value": "National Institute of Statistics (INS Tunisia) offers open dataset portals and REST services for municipal and national demographics.",
-                "Status": 0,
-            }
-        ],
-        "Senegal": [
-            {
-                "Task": "https://www.ansd.sn/",
-                "Value": "Agence Nationale de la Statistique et de la Démographie (ANSD) provides open data catalog endpoints for census statistics.",
-                "Status": 0,
-            }
-        ],
-    }
+            if pop is not None and income is not None:
+                if pop < min_pop and income > min_income:
+                    # Save the metrics into a dictionary mapping the city name to its details
+                    cities_dict[name] = {
+                        "Population": pop,
+                        "Median Income": income
+                    }
 
-    # 1. Save single unified master roster CSV (names.csv)
-    country_list = list(global_census_api_data.keys())
-    names_df = pd.DataFrame(country_list, columns=["EmployeeName"])
-    names_path = os.path.join(save_folder, "names.csv")
-    names_df.to_csv(names_path, index=False, encoding="utf-8")
-    print(
-        f"\n[+] Master roster successfully created ({len(country_list)} countries): {names_path}"
-    )
+        if cities_dict:
+            print(f"\nSuccessfully stored {len(cities_dict)} cities into the dictionary.")
+            print("\nPreview of stored dictionary contents:")
+            
+            # Fixed: convert items() to a list before slicing
+            for city, details in list(cities_dict.items())[:5]:
+                print(f"{city}: {details}")
+                
+            return cities_dict
+        else:
+            print("\nNo cities matched the specified criteria.")
+            return {}
 
-    # 2. Save individual country schedule CSVs ([Country].csv)
-    for country, tasks in global_census_api_data.items():
-        country_df = pd.DataFrame(tasks, columns=["Task", "Value", "Status"])
-        country_path = os.path.join(save_folder, f"{country}.csv")
-        country_df.to_csv(country_path, index=False, encoding="utf-8")
-        print(f"[+] Saved schedule: {country_path}")
-
+    except Exception as e:
+        print(f"\nAn error occurred while communicating with the Census API: {e}")
+        return {}
 
 if __name__ == "__main__":
-    # Paste or enter target folder path here
-    target_path = input("Enter target folder path to save CSVs: ").strip()
-
-    if not target_path:
-        target_path = "./global_census_apis_data"
-        print(f"No path entered. Defaulting to: {target_path}")
-
-    generate_all_global_census_api_csvs(target_path)
+    result_dict = get_filtered_cities()
